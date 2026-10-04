@@ -644,18 +644,10 @@ function exportCSV(){
   document.getElementById("amount").addEventListener("keypress", function(e){
     if (e.key === "Enter") addTransaction();
   });
-  // Don't render yet — wait for Firebase login
-  // render();  ← removed
+  // Do NOT call render() here — data loads after Firebase login
 })();
-  render();
-})();
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('Service Worker registered ✓'))
-      .catch(err => console.log('SW registration failed:', err));
-  });
-}
+</script>
+
 <script>
   // ============ AUTH HANDLERS ============
   function showAuthError(msg) {
@@ -700,110 +692,6 @@ if ('serviceWorker' in navigator) {
 
   // ============ AUTH STATE ============
   window.addEventListener("load", () => {
-    // Wait for Firebase module to initialize
-    const checkFirebase = setInterval(() => {
-      if (!window.firebaseAuth) return;
-      clearInterval(checkFirebase);
-
-      const fns = window.firebaseFns;
-      fns.onAuthStateChanged(window.firebaseAuth, (user) => {
-        const loginScreen = document.getElementById("loginScreen");
-        const mainApp = document.querySelector(".container");
-        const logoutBtn = document.getElementById("logoutBtn");
-
-        if (user) {
-          // Logged in — hide login, show app
-          loginScreen.style.display = "none";
-          document.querySelectorAll(".container > *:not(#loginScreen)").forEach(el => el.style.display = "");
-          logoutBtn.style.display = "block";
-          window.__currentUser = user;
-          loadFromFirestore(user.uid);
-        } else {
-          // Logged out — show login, hide app
-          document.querySelectorAll(".container > *:not(#loginScreen)").forEach(el => el.style.display = "none");
-          loginScreen.style.display = "flex";
-          logoutBtn.style.display = "none";
-          window.__currentUser = null;
-          window.__unsubscribeFirestore && window.__unsubscribeFirestore();
-        }
-      });
-    }, 50);
-  });
-
-  // ============ FIRESTORE SYNC ============
-  function loadFromFirestore(uid) {
-    const fns = window.firebaseFns;
-    const userDocRef = fns.doc(window.firebaseDb, "users", uid);
-
-    // Real-time listener
-    window.__unsubscribeFirestore = fns.onSnapshot(userDocRef, (snap) => {
-      if (snap.exists() && snap.data().transactions) {
-        // Update global transactions array
-        window.setTransactionsFromCloud(snap.data().transactions);
-      } else {
-        window.setTransactionsFromCloud([]);
-      }
-    });
-  }
-
-  // Save current state to Firestore
-  window.saveToCloud = async function () {
-    if (!window.__currentUser) return;
-    const fns = window.firebaseFns;
-    const userDocRef = fns.doc(window.firebaseDb, "users", window.__currentUser.uid);
-    try {
-      await fns.setDoc(userDocRef, {
-        transactions: window.getTransactions(),
-        lastUpdated: Date.now()
-      });
-    } catch (err) {
-      console.error("Save failed:", err);
-    }
-  };
-</script>
-</script>
-<script>
-  function showAuthError(msg) {
-    document.getElementById("authError").textContent = msg;
-  }
-
-  window.handleLogin = async function () {
-    const email = document.getElementById("authEmail").value.trim();
-    const password = document.getElementById("authPassword").value;
-    if (!email || !password) return showAuthError("Enter email and password");
-    showAuthError("");
-    document.getElementById("loginBtn").textContent = "Logging in...";
-    try {
-      const fns = window.firebaseFns;
-      await fns.signInWithEmailAndPassword(window.firebaseAuth, email, password);
-    } catch (err) {
-      showAuthError(err.message.replace("Firebase: ", ""));
-      document.getElementById("loginBtn").textContent = "Log In";
-    }
-  };
-
-  window.handleSignup = async function () {
-    const email = document.getElementById("authEmail").value.trim();
-    const password = document.getElementById("authPassword").value;
-    if (!email || !password) return showAuthError("Enter email and password");
-    if (password.length < 6) return showAuthError("Password must be at least 6 characters");
-    showAuthError("");
-    document.getElementById("signupBtn").textContent = "Creating...";
-    try {
-      const fns = window.firebaseFns;
-      await fns.createUserWithEmailAndPassword(window.firebaseAuth, email, password);
-    } catch (err) {
-      showAuthError(err.message.replace("Firebase: ", ""));
-      document.getElementById("signupBtn").textContent = "Create Account";
-    }
-  };
-
-  window.handleLogout = async function () {
-    if (!confirm("Log out?")) return;
-    await window.firebaseFns.signOut(window.firebaseAuth);
-  };
-
-  window.addEventListener("load", () => {
     const checkFirebase = setInterval(() => {
       if (!window.firebaseAuth) return;
       clearInterval(checkFirebase);
@@ -828,6 +716,7 @@ if ('serviceWorker' in navigator) {
     }, 50);
   });
 
+  // ============ FIRESTORE SYNC ============
   function loadFromFirestore(uid) {
     const fns = window.firebaseFns;
     const userDocRef = fns.doc(window.firebaseDb, "users", uid);
@@ -853,6 +742,15 @@ if ('serviceWorker' in navigator) {
       console.error("Save failed:", err);
     }
   };
+
+  // ============ SERVICE WORKER ============
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('Service Worker registered ✓'))
+        .catch(err => console.log('SW registration failed:', err));
+    });
+  }
 </script>
 </body>
 </html>
