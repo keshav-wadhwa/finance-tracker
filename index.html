@@ -762,5 +762,97 @@ if ('serviceWorker' in navigator) {
   };
 </script>
 </script>
+<script>
+  function showAuthError(msg) {
+    document.getElementById("authError").textContent = msg;
+  }
+
+  window.handleLogin = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    if (!email || !password) return showAuthError("Enter email and password");
+    showAuthError("");
+    document.getElementById("loginBtn").textContent = "Logging in...";
+    try {
+      const fns = window.firebaseFns;
+      await fns.signInWithEmailAndPassword(window.firebaseAuth, email, password);
+    } catch (err) {
+      showAuthError(err.message.replace("Firebase: ", ""));
+      document.getElementById("loginBtn").textContent = "Log In";
+    }
+  };
+
+  window.handleSignup = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    if (!email || !password) return showAuthError("Enter email and password");
+    if (password.length < 6) return showAuthError("Password must be at least 6 characters");
+    showAuthError("");
+    document.getElementById("signupBtn").textContent = "Creating...";
+    try {
+      const fns = window.firebaseFns;
+      await fns.createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+    } catch (err) {
+      showAuthError(err.message.replace("Firebase: ", ""));
+      document.getElementById("signupBtn").textContent = "Create Account";
+    }
+  };
+
+  window.handleLogout = async function () {
+    if (!confirm("Log out?")) return;
+    await window.firebaseFns.signOut(window.firebaseAuth);
+  };
+
+  window.addEventListener("load", () => {
+    const checkFirebase = setInterval(() => {
+      if (!window.firebaseAuth) return;
+      clearInterval(checkFirebase);
+      const fns = window.firebaseFns;
+      fns.onAuthStateChanged(window.firebaseAuth, (user) => {
+        const loginScreen = document.getElementById("loginScreen");
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (user) {
+          document.body.classList.add("logged-in");
+          loginScreen.style.display = "none";
+          logoutBtn.style.display = "block";
+          window.__currentUser = user;
+          loadFromFirestore(user.uid);
+        } else {
+          document.body.classList.remove("logged-in");
+          loginScreen.style.display = "flex";
+          logoutBtn.style.display = "none";
+          window.__currentUser = null;
+          if (window.__unsubscribeFirestore) window.__unsubscribeFirestore();
+        }
+      });
+    }, 50);
+  });
+
+  function loadFromFirestore(uid) {
+    const fns = window.firebaseFns;
+    const userDocRef = fns.doc(window.firebaseDb, "users", uid);
+    window.__unsubscribeFirestore = fns.onSnapshot(userDocRef, (snap) => {
+      if (snap.exists() && snap.data().transactions) {
+        window.setTransactionsFromCloud(snap.data().transactions);
+      } else {
+        window.setTransactionsFromCloud([]);
+      }
+    });
+  }
+
+  window.saveToCloud = async function () {
+    if (!window.__currentUser) return;
+    const fns = window.firebaseFns;
+    const userDocRef = fns.doc(window.firebaseDb, "users", window.__currentUser.uid);
+    try {
+      await fns.setDoc(userDocRef, {
+        transactions: window.getTransactions(),
+        lastUpdated: Date.now()
+      });
+    } catch (err) {
+      console.error("Save failed:", err);
+    }
+  };
+</script>
 </body>
 </html>
