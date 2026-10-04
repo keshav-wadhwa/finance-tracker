@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Finance Tracker Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finance">
+<link rel="apple-touch-icon" href="icon-192.png">  
 <style>
   :root{--bg:#0f172a;--bg-card:#1e293b;--bg-input:#0f172a;--border:#334155;--text:#e2e8f0;--text-muted:#94a3b8;--text-dim:#64748b;--accent:#38bdf8;--accent2:#a78bfa;--income:#4ade80;--expense:#f87171;--shadow:rgba(0,0,0,0.3);}
   [data-theme="light"]{--bg:#f1f5f9;--bg-card:#fff;--bg-input:#f8fafc;--border:#e2e8f0;--text:#0f172a;--text-muted:#475569;--text-dim:#94a3b8;--shadow:rgba(0,0,0,0.08);}
@@ -571,6 +577,13 @@ function exportCSV(){
   });
   render();
 })();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Service Worker registered ✓'))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}  
 </script>
 </body>
 </html>
