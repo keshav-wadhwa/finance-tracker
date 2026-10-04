@@ -5,6 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Finance Tracker Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+  import { getFirestore, doc, setDoc, onSnapshot }
+    from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+  // ⚠️ PASTE YOUR firebaseConfig HERE — replace the whole block below
+  const firebaseConfig = {
+    apiKey: "AIzaSyBpQE1jeLe2TcRE7NzVozhCCN9lZGQmYmY",
+    authDomain: "finance-tracker-b2630.firebaseapp.com",
+    projectId: "finance-tracker-b2630",
+    storageBucket: "finance-tracker-b2630.firebasestorage.app",
+    messagingSenderId: "1028188019609",
+    appId: "1:1028188019609:web:a0dc2e6e05dd6b6d3b1108"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Expose to global scope so the rest of the app can use them
+  window.firebaseAuth = auth;
+  window.firebaseDb = db;
+  window.firebaseFns = {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    doc,
+    setDoc,
+    onSnapshot
+  };
+</script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
 <meta name="mobile-web-app-capable" content="yes">
@@ -18,6 +53,9 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px 16px;}
   .container{max-width:1200px;margin:0 auto;}
+  body:not(.logged-in) .app-section {
+  display: none !important;
+}
   .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
   h1{font-size:28px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
   .subtitle{color:var(--text-muted);margin-top:4px;font-size:13px;}
@@ -94,7 +132,26 @@
 </head>
 <body>
 <div class="container">
-  <div class="topbar">
+  <!-- LOGIN SCREEN -->
+<div id="loginScreen" style="display:none; min-height:80vh; display:flex; align-items:center; justify-content:center;">
+  <div class="panel" style="max-width:400px; width:100%; padding:32px;">
+    <h1 style="font-size:24px; text-align:center; margin-bottom:8px;">💰 Finance Tracker</h1>
+    <p style="text-align:center; color:var(--text-muted); font-size:13px; margin-bottom:24px;">
+      Sign in to sync across your devices
+    </p>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <input type="email" id="authEmail" placeholder="Email" autocomplete="email" />
+      <input type="password" id="authPassword" placeholder="Password (min 6 chars)" autocomplete="current-password" />
+      <div id="authError" style="color:var(--expense); font-size:13px; min-height:18px; text-align:center;"></div>
+      <button class="btn" onclick="handleLogin()" id="loginBtn" style="width:100%;">Log In</button>
+      <button class="btn-secondary" onclick="handleSignup()" id="signupBtn" style="width:100%;">Create Account</button>
+      <p style="text-align:center; font-size:12px; color:var(--text-dim); margin-top:8px;">
+        New here? Create an account — it's free.
+      </p>
+    </div>
+  </div>
+</div>
+  <div class="topbar app-section">
     <div>
       <h1>💰 Finance Tracker Pro</h1>
       <p class="subtitle">Track income, expenses, budgets & savings — saved locally in your browser.</p>
@@ -102,17 +159,18 @@
     <div class="top-actions">
       <button class="icon-btn" onclick="exportCSV()">📥 Export CSV</button>
       <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+      <button class="icon-btn" onclick="handleLogout()" id="logoutBtn" style="display:none;">🚪 Logout</button>
     </div>
   </div>
 
-  <div class="summary">
+  <div class="summary app-section">
     <div class="card income"><div class="label">Total Income</div><div class="value" id="totalIncome">$0.00</div></div>
     <div class="card expense"><div class="label">Total Expenses</div><div class="value" id="totalExpense">$0.00</div></div>
     <div class="card balance"><div class="label">Balance</div><div class="value" id="balance">$0.00</div></div>
     <div class="card savings"><div class="label">Savings Rate</div><div class="value" id="savingsRate">0%</div></div>
   </div>
 
-  <div class="main-grid">
+  <div class="main-grid app-section">
     <div class="panel">
       <h2>Spending by Category</h2>
       <div class="chart-wrap">
@@ -130,7 +188,7 @@
     </div>
   </div>
 
-  <div class="main-grid">
+  <div class="main-grid app-section">
     <div class="panel">
       <h2>Add Transaction</h2>
       <div class="form-grid">
@@ -173,7 +231,7 @@
     </div>
   </div>
 
-  <div class="table-wrap">
+  <div class="table-wrap app-section">
     <div class="table-header">
       <h2>Transactions (<span id="txCount">0</span>)</h2>
       <div><button class="btn-sm" onclick="clearAll()">Clear All</button></div>
@@ -232,15 +290,25 @@ var CATEGORIES = ["Food","Rent","Transport","Utilities","Entertainment","Shoppin
 var COLORS = ["#38bdf8","#a78bfa","#f87171","#4ade80","#fbbf24","#f472b6","#22d3ee","#fb923c","#a3e635","#c084fc","#94a3b8"];
 
 var transactions = [];
+window.getTransactions = function(){ return transactions; };
+window.setTransactionsFromCloud = function(arr){
+  transactions = arr || [];
+  render();
+};
 var budgets = {};
 var pieChart = null;
 var barChart = null;
 var editingId = null;
 
-try { transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(e) { transactions = []; }
+// try { transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(e) { transactions = []; }
 try { budgets = JSON.parse(localStorage.getItem(BUDGET_KEY) || "{}"); } catch(e) { budgets = {}; }
 
-function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions)); }
+function save(){
+  // Save locally as backup
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+  // Sync to cloud
+  if (window.saveToCloud) window.saveToCloud();
+}
 function saveBudgets(){ localStorage.setItem(BUDGET_KEY, JSON.stringify(budgets)); }
 function fmt(n){ return "$" + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
@@ -576,6 +644,9 @@ function exportCSV(){
   document.getElementById("amount").addEventListener("keypress", function(e){
     if (e.key === "Enter") addTransaction();
   });
+  // Don't render yet — wait for Firebase login
+  // render();  ← removed
+})();
   render();
 })();
 if ('serviceWorker' in navigator) {
@@ -584,7 +655,112 @@ if ('serviceWorker' in navigator) {
       .then(reg => console.log('Service Worker registered ✓'))
       .catch(err => console.log('SW registration failed:', err));
   });
-}  
+}
+<script>
+  // ============ AUTH HANDLERS ============
+  function showAuthError(msg) {
+    document.getElementById("authError").textContent = msg;
+  }
+
+  window.handleLogin = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    if (!email || !password) return showAuthError("Enter email and password");
+    showAuthError("");
+    document.getElementById("loginBtn").textContent = "Logging in...";
+    try {
+      const fns = window.firebaseFns;
+      await fns.signInWithEmailAndPassword(window.firebaseAuth, email, password);
+    } catch (err) {
+      showAuthError(err.message.replace("Firebase: ", ""));
+      document.getElementById("loginBtn").textContent = "Log In";
+    }
+  };
+
+  window.handleSignup = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+    if (!email || !password) return showAuthError("Enter email and password");
+    if (password.length < 6) return showAuthError("Password must be at least 6 characters");
+    showAuthError("");
+    document.getElementById("signupBtn").textContent = "Creating...";
+    try {
+      const fns = window.firebaseFns;
+      await fns.createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+    } catch (err) {
+      showAuthError(err.message.replace("Firebase: ", ""));
+      document.getElementById("signupBtn").textContent = "Create Account";
+    }
+  };
+
+  window.handleLogout = async function () {
+    if (!confirm("Log out?")) return;
+    await window.firebaseFns.signOut(window.firebaseAuth);
+  };
+
+  // ============ AUTH STATE ============
+  window.addEventListener("load", () => {
+    // Wait for Firebase module to initialize
+    const checkFirebase = setInterval(() => {
+      if (!window.firebaseAuth) return;
+      clearInterval(checkFirebase);
+
+      const fns = window.firebaseFns;
+      fns.onAuthStateChanged(window.firebaseAuth, (user) => {
+        const loginScreen = document.getElementById("loginScreen");
+        const mainApp = document.querySelector(".container");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        if (user) {
+          // Logged in — hide login, show app
+          loginScreen.style.display = "none";
+          document.querySelectorAll(".container > *:not(#loginScreen)").forEach(el => el.style.display = "");
+          logoutBtn.style.display = "block";
+          window.__currentUser = user;
+          loadFromFirestore(user.uid);
+        } else {
+          // Logged out — show login, hide app
+          document.querySelectorAll(".container > *:not(#loginScreen)").forEach(el => el.style.display = "none");
+          loginScreen.style.display = "flex";
+          logoutBtn.style.display = "none";
+          window.__currentUser = null;
+          window.__unsubscribeFirestore && window.__unsubscribeFirestore();
+        }
+      });
+    }, 50);
+  });
+
+  // ============ FIRESTORE SYNC ============
+  function loadFromFirestore(uid) {
+    const fns = window.firebaseFns;
+    const userDocRef = fns.doc(window.firebaseDb, "users", uid);
+
+    // Real-time listener
+    window.__unsubscribeFirestore = fns.onSnapshot(userDocRef, (snap) => {
+      if (snap.exists() && snap.data().transactions) {
+        // Update global transactions array
+        window.setTransactionsFromCloud(snap.data().transactions);
+      } else {
+        window.setTransactionsFromCloud([]);
+      }
+    });
+  }
+
+  // Save current state to Firestore
+  window.saveToCloud = async function () {
+    if (!window.__currentUser) return;
+    const fns = window.firebaseFns;
+    const userDocRef = fns.doc(window.firebaseDb, "users", window.__currentUser.uid);
+    try {
+      await fns.setDoc(userDocRef, {
+        transactions: window.getTransactions(),
+        lastUpdated: Date.now()
+      });
+    } catch (err) {
+      console.error("Save failed:", err);
+    }
+  };
+</script>
 </script>
 </body>
 </html>
