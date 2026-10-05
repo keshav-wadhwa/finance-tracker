@@ -164,9 +164,9 @@
   </div>
 
   <div class="summary app-section">
-    <div class="card income"><div class="label">Total Income</div><div class="value" id="totalIncome">$0.00</div></div>
-    <div class="card expense"><div class="label">Total Expenses</div><div class="value" id="totalExpense">$0.00</div></div>
-    <div class="card balance"><div class="label">Balance</div><div class="value" id="balance">$0.00</div></div>
+    <div class="card income"><div class="label">Total Income</div><div class="value" id="totalIncome">Rs.0.00</div></div>
+    <div class="card expense"><div class="label">Total Expenses</div><div class="value" id="totalExpense">Rs.0.00</div></div>
+    <div class="card balance"><div class="label">Balance</div><div class="value" id="balance">Rs.0.00</div></div>
     <div class="card savings"><div class="label">Savings Rate</div><div class="value" id="savingsRate">0%</div></div>
   </div>
 
@@ -225,7 +225,7 @@
           <option value="Entertainment">Entertainment</option><option value="Shopping">Shopping</option>
           <option value="Health">Health</option><option value="Other">Other</option>
         </select>
-        <input type="number" id="budgetAmt" placeholder="Limit $" step="0.01" min="0" />
+        <input type="number" id="budgetAmt" placeholder="Limit Rs." step="0.01" min="0" />
         <button class="btn" onclick="setBudget()">Set</button>
       </div>
     </div>
@@ -310,7 +310,7 @@ function save(){
   if (window.saveToCloud) window.saveToCloud();
 }
 function saveBudgets(){ localStorage.setItem(BUDGET_KEY, JSON.stringify(budgets)); }
-function fmt(n){ return "$" + Math.abs(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmt(n){ return "Rs." + Math.abs(n).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
 function todayISO(){ return new Date().toISOString().split("T")[0]; }
 function monthKey(iso){ return iso.slice(0,7); }
