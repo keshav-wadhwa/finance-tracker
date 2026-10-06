@@ -183,10 +183,7 @@
   }
 
   /* ---------- TOPBAR ---------- */
-  .topbar {
-    position: sticky;
-    top: 16px;
-    z-index: 50;
+   .topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -194,9 +191,7 @@
     padding: 12px 20px;
     margin-bottom: 32px;
     border-radius: var(--radius-lg);
-    background: color-mix(in srgb, var(--surface) 75%, transparent);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background: var(--surface);
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
     animation: slideDown 500ms var(--ease) both;
@@ -1095,7 +1090,6 @@
     .container { padding: 0 16px 60px; }
 
     .topbar {
-      top: 8px;
       padding: 10px 14px;
       border-radius: var(--radius);
       margin-bottom: 20px;
@@ -1402,8 +1396,8 @@ var STORAGE_KEY = "finance-tracker-pro-v1";
 var BUDGET_KEY = "finance-tracker-budgets-v1";
 var THEME_KEY = "finance-tracker-theme-v1";
 var CATEGORIES = ["Food","Rent","Transport","Utilities","Entertainment","Shopping","Health","Salary","Freelance","Investment","Other"];
-var COLORS = ["#10b981","#34d399","#059669","#6ee7b7","#047857","#a7f3d0","#14b8a6","#5eead4","#0d9488","#99f6e4","#64748b"];
-
+var COLORS = ["#10b981","#3b82f6","#f59e0b","#a78bfa","#ef4444","#14b8a6","#f472b6","#84cc16","#8b5cf6","#06b6d4","#64748b"];
+  
 var transactions = [];
 window.getTransactions = function(){ return transactions; };
 window.setTransactionsFromCloud = function(arr){
@@ -1678,10 +1672,11 @@ function updateCharts(){
         }
       }
     });
-    legendEl.innerHTML = pieLabels.map(function(l, i){
-      return '<div class="legend-item"><span class="legend-dot" style="background:' + colors[i] + '"></span>' + l + '</div>';
-    }).join("");
-  }
+   var total = pieData.reduce(function(a, b){ return a + b; }, 0);
+legendEl.innerHTML = pieLabels.map(function(l, i){
+  var pct = total > 0 ? ((pieData[i] / total) * 100).toFixed(0) : 0;
+  return '<div class="legend-item"><span class="legend-dot" style="background:' + colors[i] + ';color:' + colors[i] + '"></span>' + l + ' <span style="color:var(--text-dim);font-weight:400">' + pct + '%</span></div>';
+}).join("");
 
   // Bar
   var months = {};
