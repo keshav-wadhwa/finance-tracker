@@ -11,7 +11,7 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
     from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
   import { getFirestore, doc, setDoc, onSnapshot }
     from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
@@ -38,6 +38,7 @@
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    sendPasswordResetEmail,
     doc,
     setDoc,
     onSnapshot
@@ -239,6 +240,19 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .user-greeting {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 0 8px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .user-greeting { display: none !important; }
   }
 
   /* ---------- BUTTONS ---------- */
@@ -950,6 +964,23 @@
     font-weight: 500;
   }
 
+  .login-forgot {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    padding: 6px 8px;
+    transition: color var(--duration) var(--ease);
+    text-align: center;
+    margin-top: -4px;
+  }
+
+  .login-forgot:hover {
+    color: var(--emerald);
+  }
+
   .login-hint {
     text-align: center;
     font-size: 12px;
@@ -1161,6 +1192,7 @@
         </div>
         <div id="authError" class="login-error"></div>
         <button class="btn btn-block" onclick="handleLogin()" id="loginBtn">Log In</button>
+        <button type="button" class="login-forgot" onclick="handleForgotPassword()" id="forgotBtn">Forgot password?</button>
         <button class="btn-secondary btn-block" onclick="handleSignup()" id="signupBtn">Create Account</button>
         <p class="login-hint">New here? Create an account — it's free.</p>
       </div>
@@ -1179,6 +1211,7 @@
       </div>
     </div>
     <div class="top-actions">
+      <span class="user-greeting" id="userGreeting" style="display:none;"></span>
       <button class="icon-btn" onclick="exportCSV()">📥 <span>Export</span></button>
       <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
       <button class="icon-btn" onclick="handleLogout()" id="logoutBtn" style="display:none;">🚪 Logout</button>
@@ -1876,6 +1909,26 @@ window.addEventListener("load", () => {
     await window.firebaseFns.signOut(window.firebaseAuth);
   };
 
+  window.handleForgotPassword = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    if (!email) return showAuthError("Enter your email first, then click 'Forgot password?'");
+    if (!email.includes("@")) return showAuthError("Enter a valid email address");
+    showAuthError("");
+    document.getElementById("forgotBtn").textContent = "Sending...";
+    try {
+      await window.firebaseFns.sendPasswordResetEmail(window.firebaseAuth, email);
+      showAuthError("");
+      document.getElementById("forgotBtn").textContent = "✓ Sent! Check your inbox";
+      if (window.toast) window.toast("Reset email sent to " + email);
+      setTimeout(() => {
+        document.getElementById("forgotBtn").textContent = "Forgot password?";
+      }, 5000);
+    } catch (err) {
+      showAuthError(err.message.replace("Firebase: ", ""));
+      document.getElementById("forgotBtn").textContent = "Forgot password?";
+    }
+  };
+
   // ============ AUTH STATE ============
   window.addEventListener("load", () => {
     const checkFirebase = setInterval(() => {
@@ -1890,12 +1943,25 @@ window.addEventListener("load", () => {
           loginScreen.style.display = "none";
           logoutBtn.style.display = "block";
           window.__currentUser = user;
+
+          // NEW: Show greeting
+          var greeting = document.getElementById("userGreeting");
+          if (greeting) {
+            var name = (user.email || "").split("@")[0];
+            greeting.textContent = "Hi, " + name;
+            greeting.style.display = "inline-block";
+          }
+
           loadFromFirestore(user.uid);
         } else {
           document.body.classList.remove("logged-in");
           loginScreen.style.display = "flex";
           logoutBtn.style.display = "none";
           window.__currentUser = null;
+
+          // NEW: Hide greeting
+          var greeting = document.getElementById("userGreeting");
+          if (greeting) greeting.style.display = "none";
           if (window.__unsubscribeFirestore) window.__unsubscribeFirestore();
         }
       });
