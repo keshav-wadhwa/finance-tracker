@@ -15,6 +15,8 @@
     from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
   import { getFirestore, doc, setDoc, onSnapshot }
     from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+  // Add these two imports:
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js';
 
   // ⚠️ PASTE YOUR firebaseConfig HERE — replace the whole block below
   const firebaseConfig = {
@@ -27,6 +29,11 @@
   };
 
   const app = initializeApp(firebaseConfig);
+  // Initialize App Check
+  const appCheck = initializeAppCheck(app, {
+   provider: new ReCaptchaEnterpriseProvider('6LcAY-gtAAAAAN1F45SIH3jO7WB2vQ_X0ITZ823s'),
+   isTokenAutoRefreshEnabled: true // Recommended for most apps
+});
   const auth = getAuth(app);
   const db = getFirestore(app);
 
