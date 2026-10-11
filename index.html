@@ -1234,6 +1234,57 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gst
 
     .login-card { padding: 32px 24px; }
   }
+  /* ---------- SKELETON LOADING ---------- */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 0%,
+      var(--surface-3) 50%,
+      var(--surface-2) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: 8px;
+    color: transparent !important;
+    pointer-events: none;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .quick-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .chip {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--duration) var(--ease);
+    letter-spacing: -0.01em;
+  }
+
+  .chip:hover {
+    border-color: var(--emerald);
+    color: var(--emerald);
+  }
+
+  .chip.active {
+    background: var(--emerald);
+    border-color: var(--emerald);
+    color: #fff;
+    box-shadow: 0 2px 8px var(--emerald-glow);
+  }  
 </style>
 </head>
 <body>
@@ -1358,7 +1409,7 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gst
 
         <div class="input-group">
           <label class="input-label" for="amount">Amount (₹)</label>
-          <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" />
+          <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
         </div>
 
         <div class="input-group">
@@ -1409,7 +1460,7 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gst
           <option value="Health">Health</option>
           <option value="Other">Other</option>
         </select>
-        <input type="number" id="budgetAmt" placeholder="Limit ₹" step="0.01" min="0" />
+        <input type="number" id="budgetAmt" placeholder="Limit ₹" step="0.01" min="0" inputmode="decimal" />
         <button class="btn" onclick="setBudget()">Set</button>
       </div>
     </div>
@@ -1424,7 +1475,13 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gst
       <button class="btn-sm" onclick="clearAll()">Clear All</button>
     </div>
 
-    <div style="padding:20px 24px 0;">
+      <div style="padding:20px 24px 0;">
+      <div class="quick-filters">
+        <button class="chip active" data-range="all" onclick="setQuickRange('all', this)">All Time</button>
+        <button class="chip" data-range="month" onclick="setQuickRange('month', this)">This Month</button>
+        <button class="chip" data-range="30d" onclick="setQuickRange('30d', this)">Last 30 Days</button>
+        <button class="chip" data-range="year" onclick="setQuickRange('year', this)">This Year</button>
+      </div>
       <div class="filters">
         <input type="text" id="searchBox" placeholder="🔍 Search description..." oninput="render()" />
         <select id="filterType" onchange="render()">
@@ -1474,7 +1531,7 @@ import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gst
       </div>
       <div class="input-group">
         <label class="input-label" for="editAmount">Amount (₹)</label>
-        <input type="number" id="editAmount" placeholder="Amount" step="0.01" min="0" />
+        <input type="number" id="editAmount" placeholder="Amount" step="0.01" min="0" inputmode="decimal" />
       </div>
       <div class="input-group">
         <label class="input-label" for="editDate">Date</label>
@@ -1528,6 +1585,7 @@ window.setBudgetsFromCloud = function(obj){
 var pieChart = null;
 var barChart = null;
 var editingId = null;
+var quickRange = "all"; // all | month | 30d | year  
 
 // try { transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch(e) { transactions = []; }
 try { budgets = JSON.parse(localStorage.getItem(BUDGET_KEY) || "{}"); } catch(e) { budgets = {}; }
@@ -1543,6 +1601,18 @@ function saveBudgets(){
   if (window.saveToCloud) window.saveToCloud();
 }
 function fmt(n){ return "Rs." + Math.abs(n).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function setLoading(on) {
+  var els = ["totalIncome", "totalExpense", "balance", "savingsRate"];
+  els.forEach(function(id){
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (on) {
+      el.classList.add("skeleton");
+    } else {
+      el.classList.remove("skeleton");
+    }
+  });
+}  
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
 function todayISO(){ return new Date().toISOString().split("T")[0]; }
 function monthKey(iso){ return iso.slice(0,7); }
@@ -1555,6 +1625,12 @@ function toast(msg, type){
   clearTimeout(el._t);
   el._t = setTimeout(function(){ el.classList.remove("show"); }, 2200);
 }
+
+function haptic() {
+  if (navigator.vibrate) {
+    try { navigator.vibrate(15); } catch(e) {}
+  }
+}  
 
 function applyTheme(t){
   document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
@@ -1580,6 +1656,7 @@ function addTransaction(){
   document.getElementById("desc").value = "";
   document.getElementById("amount").value = "";
   document.getElementById("date").value = todayISO();
+  haptic();
   save();
   render();
   toast("Transaction added ✓");
@@ -1588,7 +1665,7 @@ function addTransaction(){
 function deleteTx(id){
   if (!confirm("Delete this transaction?")) return;
   transactions = transactions.filter(function(t){ return t.id !== id; });
-  save(); render(); toast("Deleted");
+  haptic(); save(); render(); toast("Deleted");
 }
 function clearAll(){
   if (!transactions.length) return;
@@ -1651,7 +1728,13 @@ function populateFilters(){
   monthSel.innerHTML = '<option value="">All Months</option>' + months.map(function(m){ return '<option value="' + m + '">' + monthLabel(m) + '</option>'; }).join("");
   monthSel.value = curMonth;
 }
-
+function setQuickRange(range, btn) {
+  quickRange = range;
+  document.querySelectorAll(".chip").forEach(function(c){
+    c.classList.toggle("active", c.dataset.range === range);
+  });
+  render();
+}
 function resetFilters(){
   document.getElementById("searchBox").value = "";
   document.getElementById("filterType").value = "";
@@ -1665,11 +1748,26 @@ function getFiltered(){
   var type = document.getElementById("filterType").value;
   var cat = document.getElementById("filterCat").value;
   var month = document.getElementById("filterMonth").value;
+
+  var today = new Date();
+  var todayStr = today.toISOString().split("T")[0];
+  var thisMonth = todayStr.slice(0, 7);
+  var thisYear = todayStr.slice(0, 4);
+
+  var thirtyAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+  var thirtyAgoStr = thirtyAgo.toISOString().split("T")[0];
+
   return transactions.filter(function(t){
     if (q && t.desc.toLowerCase().indexOf(q) === -1) return false;
     if (type && t.type !== type) return false;
     if (cat && t.category !== cat) return false;
     if (month && monthKey(t.date) !== month) return false;
+
+    // Quick range filter
+    if (quickRange === "month" && monthKey(t.date) !== thisMonth) return false;
+    if (quickRange === "year" && t.date.slice(0, 4) !== thisYear) return false;
+    if (quickRange === "30d" && t.date < thirtyAgoStr) return false;
+
     return true;
   });
 }
@@ -1689,7 +1787,9 @@ function render(){
   document.getElementById("totalExpense").textContent = fmt(expense);
   var balEl = document.getElementById("balance");
   balEl.textContent = (bal < 0 ? "-" : "") + fmt(bal);
-  balEl.style.color = bal < 0 ? "var(--expense)" : "var(--accent)";
+  balEl.style.color = "";
+  balEl.classList.toggle("positive", bal >= 0);
+  balEl.classList.toggle("negative", bal < 0);
   var rEl = document.getElementById("savingsRate");
   rEl.textContent = rate + "%";
   rEl.style.color = rate < 0 ? "var(--expense)" : "var(--accent2)";
@@ -1697,7 +1797,11 @@ function render(){
 
   var tbody = document.getElementById("txBody");
   if (!filtered.length){
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">No transactions match your filters.</td></tr>';
+    var isEmpty = transactions.length === 0;
+    var msg = isEmpty
+      ? "No transactions yet. Add your first one above ↑"
+      : "No transactions match your filters. Try Reset.";
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">' + msg + '</td></tr>';
   } else {
     tbody.innerHTML = filtered.map(function(t){
       var d = new Date(t.date + "T00:00:00");
@@ -2054,7 +2158,7 @@ window.addEventListener("load", () => {
             greeting.textContent = "Hi, " + name;
             greeting.style.display = "inline-block";
           }
-
+          if (window.setLoading) window.setLoading(true);
           loadFromFirestore(user.uid);
         } else {
           document.body.classList.remove("logged-in");
@@ -2072,10 +2176,11 @@ window.addEventListener("load", () => {
   });
 
   // ============ FIRESTORE SYNC ============
-  function loadFromFirestore(uid) {
+function loadFromFirestore(uid) {
   const fns = window.firebaseFns;
   const userDocRef = fns.doc(window.firebaseDb, "users", uid);
   window.__unsubscribeFirestore = fns.onSnapshot(userDocRef, (snap) => {
+    if (window.setLoading) window.setLoading(false);
     if (snap.exists()) {
       const data = snap.data();
       window.setTransactionsFromCloud(data.transactions || []);
